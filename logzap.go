@@ -5,12 +5,34 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-var Logger *zap.Logger
+const prodENV = "prod"
 
-// Init инициализирует zap-логгер с конфигурацией для нужной среды.
-func Init(env string) {
+// Logger - структура логгера.
+type Logger struct {
+	zapLogger *zap.Logger
+}
+
+// NewLogger создает и возвращает новый логгер.
+func NewLogger(env string) *Logger {
+	config := getConfig(env)
+
+	var options []zap.Option
+	if env == prodENV {
+		options = append(options, zap.WithCaller(false))
+	}
+
+	zapLogger, err := config.Build(options...)
+	if err != nil {
+		panic("Failed to initialize logger: " + err.Error())
+	}
+
+	return &Logger{zapLogger: zapLogger}
+}
+
+// getConfig возвращает конфигурацию логгера в зависимости от окружения.
+func getConfig(env string) zap.Config {
 	var config zap.Config
-	if env == "prod" {
+	if env == prodENV {
 		config = zap.NewProductionConfig()
 	} else {
 		config = zap.NewDevelopmentConfig()
@@ -19,36 +41,45 @@ func Init(env string) {
 	config.EncoderConfig.TimeKey = "timestamp"
 	config.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
 
-	var err error
-	Logger, err = config.Build()
-	if err != nil {
-		panic("Failed to initialize logger: " + err.Error())
-	}
+	return config
 }
 
-// Sync завершает все буферизованные записи логов. Должен быть вызван с defer в функции main.
-func Sync() {
-	if Logger != nil {
-		_ = Logger.Sync()
-	}
+// Debug логирует сообщение с уровнем Debug.
+func (l *Logger) Debug(msg string, fields ...zap.Field) {
+	l.zapLogger.Debug(msg, fields...)
 }
 
-func Debug(msg string, fields ...zap.Field) {
-	Logger.Debug(msg, fields...)
+// Info логирует сообщение с уровнем Info.
+func (l *Logger) Info(msg string, fields ...zap.Field) {
+	l.zapLogger.Info(msg, fields...)
 }
 
-func Info(msg string, fields ...zap.Field) {
-	Logger.Info(msg, fields...)
+// Warn логирует сообщение с уровнем Warn.
+func (l *Logger) Warn(msg string, fields ...zap.Field) {
+	l.zapLogger.Warn(msg, fields...)
 }
 
-func Warn(msg string, fields ...zap.Field) {
-	Logger.Warn(msg, fields...)
+// Error логирует сообщение с уровнем Error.
+func (l *Logger) Error(msg string, fields ...zap.Field) {
+	l.zapLogger.Error(msg, fields...)
 }
 
-func Error(msg string, fields ...zap.Field) {
-	Logger.Error(msg, fields...)
+// DPanic логирует сообщение с уровнем DPanic.
+func (l *Logger) DPanic(msg string, fields ...zap.Field) {
+	l.zapLogger.DPanic(msg, fields...)
 }
 
-func Fatal(msg string, fields ...zap.Field) {
-	Logger.Fatal(msg, fields...)
+// Panic логирует сообщение с уровнем Panic.
+func (l *Logger) Panic(msg string, fields ...zap.Field) {
+	l.zapLogger.Panic(msg, fields...)
+}
+
+// Fatal логирует сообщение с уровнем Fatal.
+func (l *Logger) Fatal(msg string, fields ...zap.Field) {
+	l.zapLogger.Fatal(msg, fields...)
+}
+
+// Sync завершает все буферизованные записи логов.
+func (l *Logger) Sync() {
+	_ = l.zapLogger.Sync()
 }
